@@ -1,0 +1,25 @@
+--- a/source/samplefix.c
++++ b/source/samplefix.c
+@@ -109,6 +109,7 @@ void Unroll_Sample_Loop( Sample* samp, u32 count )
+ 	u32 looplen;
+ 	u32 x;
+ 	looplen = samp->loop_end-samp->loop_start;
++	if( looplen == 0 ) return; /* avoid x%looplen division by zero */
+ 	newlen = samp->sample_length + looplen*count;
+ 	if( samp->format & SAMPF_16BIT )
+ 	{
+@@ -343,9 +344,12 @@ void FixSample_GBA( Sample* samp )
+ 
+ 	if( samp->loop_type )
+ 	{
+-		if( samp->loop_end-samp->loop_start < GBA_MIN_LOOP_SIZE )
++		u32 looplen = samp->loop_end - samp->loop_start;
++		if( looplen == 0 )
++			samp->loop_type = 0; /* zero-length loop → disable to avoid div-by-zero in unroll */
++		else if( looplen < GBA_MIN_LOOP_SIZE )
+ 		{
+-			Unroll_Sample_Loop( samp, (GBA_MIN_LOOP_SIZE / (samp->loop_end-samp->loop_start))+1 );
++			Unroll_Sample_Loop( samp, (GBA_MIN_LOOP_SIZE / looplen)+1 );
+ 		}
+ 	}
+ }
