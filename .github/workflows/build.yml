@@ -1,0 +1,123 @@
+name: Build Doom2D GBA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-gba:
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget python3 python3-pip
+
+      - name: Build
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          export DEVKITPRO=/opt/devkitpro
+          export DEVKITARM=${DEVKITPRO}/devkitARM
+          make
+
+      - name: Prepare artifact
+        id: prepare
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          D2D_BUILD_VERSION=$(cat VERSION)
+          D2D_BUILD_COMMIT=$(git rev-parse --short HEAD)
+          D2D_BUILD_STRING="${D2D_BUILD_VERSION}-${D2D_BUILD_COMMIT}"
+          D2D_BUILD_FILENAME="doom2d.${D2D_BUILD_STRING}.gba"
+          cp doom2d.gba "${D2D_BUILD_FILENAME}"
+          echo "D2D_BUILD_VERSION=${D2D_BUILD_VERSION}" >> $GITHUB_ENV
+          echo "D2D_BUILD_VERSION=${D2D_BUILD_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "D2D_BUILD_COMMIT=${D2D_BUILD_COMMIT}" >> $GITHUB_ENV
+          echo "D2D_BUILD_COMMIT=${D2D_BUILD_COMMIT}" >> "$GITHUB_OUTPUT"
+          echo "D2D_BUILD_STRING=${D2D_BUILD_STRING}" >> $GITHUB_ENV
+          echo "D2D_BUILD_STRING=${D2D_BUILD_STRING}" >> "$GITHUB_OUTPUT"
+          echo "D2D_BUILD_FILENAME=${D2D_BUILD_FILENAME}" >> $GITHUB_ENV
+          echo "D2D_BUILD_FILENAME=${D2D_BUILD_FILENAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          if-no-files-found: 'error'
+          name: ${{ env.D2D_BUILD_FILENAME }}
+          path: ${{ env.D2D_BUILD_FILENAME }}
+
+    outputs:
+      D2D_BUILD_VERSION: ${{ steps.prepare.outputs.D2D_BUILD_VERSION }}
+      D2D_BUILD_COMMIT: ${{ steps.prepare.outputs.D2D_BUILD_COMMIT }}
+      D2D_BUILD_STRING: ${{ steps.prepare.outputs.D2D_BUILD_STRING }}
+      D2D_BUILD_FILENAME: ${{ steps.prepare.outputs.D2D_BUILD_FILENAME }}
+
+  release:
+    permissions:
+      contents: write
+    needs:
+      - build-gba
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download GBA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-gba.outputs.D2D_BUILD_FILENAME }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ needs.build-gba.outputs.D2D_BUILD_FILENAME }}
+          tag_name: v${{ needs.build-gba.outputs.D2D_BUILD_VERSION }}
+          name: Doom2D GBA v${{ needs.build-gba.outputs.D2D_BUILD_STRING }}
+          generate_release_notes: true
+
+  semver:
+    permissions:
+      contents: write
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Setup SSH Keys
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.SSH_PRIVATE_KEY }}"
+
+      - name: SemVer - Increase version
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          CURRENT_VERSION=$(cat VERSION)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Current version: $CURRENT_VERSION"
+          echo "New version: $NEW_VERSION"
+          echo -en "$NEW_VERSION" > VERSION
+          git add VERSION
+          git commit -m "[skip ci] Bump version to $NEW_VERSION"
+          git push origin main
