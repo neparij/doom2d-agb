@@ -22,19 +22,26 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget python3 python3-pip
+          sudo apt-get install -y wget python3 python3-pip autoconf automake libtool
 
-      # mmutil in older devkitARM images can SIGFPE (exit 136) on large soundbanks.
-      # v1.10.1+ fixes "Don't read loop points before sample length is known". Update tools.
-      - name: Update devkitPro tools
+      # mmutil in devkitARM image can SIGFPE (exit 136) on large soundbanks; v1.10.1 fixes it.
+      # Build mmutil v1.10.1 from source and put it first on PATH.
+      - name: Build mmutil v1.10.1
         run: |
-          sudo dkp-pacman -Syu --noconfirm || true
+          git clone https://github.com/devkitPro/mmutil.git --branch v1.10.1 --depth 1 mmutil-src
+          cd mmutil-src
+          autoreconf -fi
+          ./configure --prefix="$GITHUB_WORKSPACE/mmutil-install"
+          make -j$(nproc)
+          make install
+          echo "MMUTIL_BIN=$GITHUB_WORKSPACE/mmutil-install/bin" >> $GITHUB_ENV
 
       - name: Build
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
           export DEVKITPRO=/opt/devkitpro
           export DEVKITARM=${DEVKITPRO}/devkitARM
+          export PATH="$MMUTIL_BIN:$PATH"
           make
 
       - name: Prepare artifact
