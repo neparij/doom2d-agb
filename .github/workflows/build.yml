@@ -52,7 +52,7 @@ jobs:
           D2D_BUILD_COMMIT=$(git rev-parse --short HEAD)
           D2D_BUILD_STRING="${D2D_BUILD_VERSION}-${D2D_BUILD_COMMIT}"
           D2D_BUILD_FILENAME="doom2d.${D2D_BUILD_STRING}.gba"
-          cp doom2d.gba "${D2D_BUILD_FILENAME}"
+          cp doom2d-agb.gba "${D2D_BUILD_FILENAME}"
           echo "D2D_BUILD_VERSION=${D2D_BUILD_VERSION}" >> $GITHUB_ENV
           echo "D2D_BUILD_VERSION=${D2D_BUILD_VERSION}" >> "$GITHUB_OUTPUT"
           echo "D2D_BUILD_COMMIT=${D2D_BUILD_COMMIT}" >> $GITHUB_ENV
