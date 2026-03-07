@@ -41,8 +41,10 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE
           export DEVKITPRO=/opt/devkitpro
           export DEVKITARM=${DEVKITPRO}/devkitARM
-          export PATH="$MMUTIL_BIN:$PATH"
-          make
+          echo "Using mmutil: $MMUTIL_BIN/mmutil"
+          "$MMUTIL_BIN/mmutil" --version || true
+          # Force Butano to use our mmutil v1.10.1 (AUDIOTOOL is passed to butano_assets_tool.py)
+          make AUDIOTOOL="$MMUTIL_BIN/mmutil"
 
       - name: Prepare artifact
         id: prepare
