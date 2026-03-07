@@ -24,6 +24,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget python3 python3-pip
 
+      # mmutil in older devkitARM images can SIGFPE (exit 136) on large soundbanks.
+      # v1.10.1+ fixes "Don't read loop points before sample length is known". Update tools.
+      - name: Update devkitPro tools
+        run: |
+          sudo dkp-pacman -Syu --noconfirm || true
+
       - name: Build
         run: |
           git config --global --add safe.directory $GITHUB_WORKSPACE
