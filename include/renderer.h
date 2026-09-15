@@ -29,6 +29,7 @@ extern bn::vector<bn::sprite_ptr, 13> st_gfx_sprites;
 extern bn::vector<bn::sprite_ptr, 64> st_text_sprites;
 extern bn::vector<bn::sprite_ptr, 64> menu_text_sprites;
 extern bn::vector<bn::sprite_ptr, 2> menu_cursor_sprites;
+extern bn::vector<bn::sprite_ptr, 48> menu_vol_sprites;
 extern bn::vector<bn::sprite_ptr, 64> inter_text_sprites;
 
 void R_Init(void);
@@ -63,6 +64,10 @@ void V_manspr2(int, int, void *);
 void V_dot(short x,short y,unsigned char c);
 
 void V_apply_palette_effects(int);
+
+/** Настройка экрана 0..128: intensity 0..0.5, brightness 0..0.2. */
+extern short pal_level;
+void V_apply_display(void);
 
 void V_apply_water_filter_to(uint32_t* buffer_base, int row_stride_words);
 
