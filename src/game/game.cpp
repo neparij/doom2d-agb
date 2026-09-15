@@ -410,6 +410,7 @@ void G_act(void) {
   } else PL_act(&pl1, keys_pl1);
    MN_act();
    if(fld_need_remap) BM_remapfld();
+   build_sky_mask_dirty();
    BM_clear(BM_PLR1|BM_PLR2|BM_MONSTER);
    BM_mark(&pl1.o,BM_PLR1);
    if(_2pl) BM_mark(&pl2.o,BM_PLR2);

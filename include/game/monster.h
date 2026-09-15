@@ -18,10 +18,6 @@ enum{
 
 void MN_init(void);
 void MN_alloc(void);
-/** Построить индекс монстров по ячейкам 32×32 для Z_gunhit. Вызывать в начале G_act. */
-void MN_build_gunhit_index(void);
-/** Проверить попадание в монстров в ячейках вокруг (cx,cy). o<0 = выстрел игрока. Возврат как Z_gunhit. */
-int MN_gunhit_check_cells(int cx, int cy, int x, int y, int o, int xv, int yv);
 int MN_spawn(int,int,unsigned char,int);
 int MN_spawn_deadpl(obj_t *,unsigned char,int);
 void MN_act(void);
