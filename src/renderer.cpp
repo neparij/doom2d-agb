@@ -7,6 +7,7 @@
 #include "bn_log.h"
 #include "bn_display.h"
 #include "bn_bg_palettes.h"
+#include "bn_sprite_palettes.h"
 #include "bn_sprite_ptr.h"
 #include "stbf_font_sprite_font.h"
 #include "stcfn_font_sprite_font.h"
@@ -22,6 +23,7 @@ bn::vector<bn::sprite_ptr, 13> st_gfx_sprites;
 bn::vector<bn::sprite_ptr, 64> st_text_sprites;
 bn::vector<bn::sprite_ptr, 64> menu_text_sprites;
 bn::vector<bn::sprite_ptr, 2> menu_cursor_sprites;
+bn::vector<bn::sprite_ptr, 48> menu_vol_sprites;
 bn::vector<bn::sprite_ptr, 64> inter_text_sprites;
 
 void R_Init(void) {
@@ -57,6 +59,7 @@ void R_Init(void) {
     st_text_sprites.clear();
     menu_text_sprites.clear();
     menu_cursor_sprites.clear();
+    menu_vol_sprites.clear();
     inter_text_sprites.clear();
 }
 
@@ -65,6 +68,7 @@ void R_clear_sprites(void) {
     st_text_sprites.clear();
     menu_text_sprites.clear();
     menu_cursor_sprites.clear();
+    menu_vol_sprites.clear();
     inter_text_sprites.clear();
 }
 
@@ -72,15 +76,31 @@ void R_clear_sprites(void) {
 extern int sky_type;
 extern int lt_time;
 
+short pal_level = 32;
+int gamma = 0;
+
+void V_apply_display(void) {
+    const bn::fixed t = pal_level <= 0 ? bn::fixed(0) : bn::fixed(pal_level).division(128);
+    const bn::fixed intens = t.multiplication(bn::fixed(0.5));
+    const bn::fixed bright = t.multiplication(bn::fixed(0.2));
+    bn::bg_palettes::set_intensity(intens);
+    bn::bg_palettes::set_brightness(bright);
+    bn::sprite_palettes::set_intensity(intens);
+    bn::sprite_palettes::set_brightness(bright);
+}
+
 void V_apply_palette_effects(int h) {
-    bn::bg_palettes::set_brightness(0.0);
+    V_apply_display();
     bn::bg_palettes::set_fade_intensity(0);
     bn::bg_palettes::set_grayscale_intensity(0.0);
     bn::bg_palettes::set_inverted(false);
 
     if (sky_type == 2) {
         if (lt_time == -4 || lt_time == -2) {
-            bn::bg_palettes::set_brightness(0.5);
+            bn::fixed flash = bn::fixed(pal_level).division(128).multiplication(bn::fixed(0.2)) + bn::fixed(0.5);
+            if (flash > 1) flash = 1;
+            bn::bg_palettes::set_brightness(flash);
+            bn::sprite_palettes::set_brightness(flash);
         }
     }
     if (h == 6) {

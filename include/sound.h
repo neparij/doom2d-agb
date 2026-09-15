@@ -56,6 +56,9 @@ void S_startmusic(void);
 // остановить музыку
 void S_stopmusic(void);
 
+// применить snd_vol / mus_vol к текущему звуку и музыке
+void S_apply_volume(void);
+
 
 extern short snd_type;
 extern bn::optional<bn::music_item> current_music_ref;

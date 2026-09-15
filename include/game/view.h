@@ -66,6 +66,7 @@ extern unsigned char walswp[256];
 extern unsigned char g_bot,_2pl,g_dm,g_st,g_exit,w_horiz,g_map;
 /** Set by menu when NEW GAME selected; G_act runs G_start on next frame (so sound plays first). */
 extern int g_pending_newgame;
+extern int g_pending_load;
 extern int g_sttm;
 extern unsigned int g_time;
 extern int w_ht;

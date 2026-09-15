@@ -79,6 +79,7 @@
 #include "game/player.h"
 #include "misc.h"
 #include "sound.h"
+#include "save.h"
 #include "renderer.h"
 #include "debug.h"
 // #define ALLOW_SKIP_FRAMES  // если G_draw не успел до след. таймера — пропустить отрисовку (макс. 1 раз подряд)
@@ -117,10 +118,6 @@ constexpr char G_TARGET_FRAMERATE = 18;
 constexpr char G_TICKS_SKIP = 60 / G_TARGET_FRAMERATE;
 bn::fixed inc_cpu_usage;
 constexpr bn::fixed G_CPU_USAGE_DIVISOR = bn::fixed(60).division(G_TARGET_FRAMERATE);
-
-short mus_vol=128;
-int gamma=0;
-void setgamma(int);
 
 static bn::fixed display_brightness = bn::fixed(0.0);
 static bn::fixed display_contrast = bn::fixed(0.0);
@@ -254,8 +251,6 @@ unsigned strlen(const char* s) {
     bn::core::init(bn::color(0, 0, 0));
     init_timers();
 
-    bn::bg_palettes::set_intensity(bn::fixed(0.5));
-
     BN_LOG("Fast EWRAM available: ", bn::memory::fast_ewram());
     BN_LOG("Slow GamePak found: ", bn::core::slow_game_pak());
 
@@ -295,10 +290,10 @@ unsigned strlen(const char* s) {
     // logo("V_init: настройка видео\n");
     // if(V_init()!=0) ERR_failinit("Не могу установить видеорежим VGA");
     R_Init();
-    setgamma(gamma);
-    // V_setscr(scrbuf);
-    // harderr_inst(harderr_handler);
     GM_init();
+    SV_init();
+    V_apply_display();
+    S_apply_volume();
     initialized = true;
     F_loadmus("MENU");
     S_startmusic();
@@ -325,12 +320,12 @@ unsigned strlen(const char* s) {
             int avg_cpu_usage = inc_cpu_usage.division(G_CPU_USAGE_DIVISOR).multiplication(100).right_shift_integer();
             inc_cpu_usage = 0;
             game_tick_pending = false;
-            _text_sprites.clear();
-            _text_generator.set_left_alignment();
-            _text_generator.generate(-120, -80+(g_st==GS_GAME ? 16 : 4), bn::format<32>("CPU:{}%", avg_cpu_usage), _text_sprites);
-            if (g_st==GS_TITLE) {
-                _text_generator.generate(-120, 74, bn::format<23>("v{}", D2DGBA_BUILD_STRING), _text_sprites);
-            }
+            // _text_sprites.clear();
+            // _text_generator.set_left_alignment();
+            // _text_generator.generate(-120, -80+(g_st==GS_GAME ? 16 : 4), bn::format<32>("CPU:{}%", avg_cpu_usage), _text_sprites);
+            // if (g_st==GS_TITLE) {
+            //     _text_generator.generate(-120, 74, bn::format<23>("v{}", D2DGBA_BUILD_STRING), _text_sprites);
+            // }
 
             G_act();
             draw_pending = true;
