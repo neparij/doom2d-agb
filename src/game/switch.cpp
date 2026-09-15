@@ -118,18 +118,22 @@ void SW_init(void) {
 }
 
 static unsigned char cht,chto,chf,f_ch;
-static bool need_sky_mask_rebuild;
 
 static void door(unsigned char x,unsigned char y) {
-  unsigned char ex;
+  unsigned char ex, x0;
 
   if(x>=FLDW || y>=FLDH) return;
   if(fld[y][x]!=cht) return;
   ex=x+1;
   for(;x && fld[y][x-1]==cht;--x);
   for(;ex<FLDW && fld[y][ex]==cht;++ex);
+  x0=x;
   memset(fld[y]+x,chto,ex-x);
-  if(f_ch) { memset(fldf[y]+x,chf,ex-x); need_sky_mask_rebuild = true; }
+  if(f_ch) {
+    memset(fldf[y]+x,chf,ex-x);
+    sky_mark_dirty(x0,y,ex,y+1);
+  }
+  BM_dirty_fld(x0,y,ex,y+1);
   for(;x<ex;++x) {
 	door(x,y-1);
 	door(x,y+1);
@@ -163,10 +167,7 @@ void Z_water_trap(obj_t *o) {
 		cht=5;chto=255;f_ch=0;
 		door(i,j);
 	  }
-  if (need_sky_mask_rebuild) {
-    build_sky_mask();
-    need_sky_mask_rebuild = false;
-  }
+  build_sky_mask_dirty();
 }
 
 void Z_untrap(unsigned char t) {
@@ -185,8 +186,6 @@ static void opendoor(int i) {
   cht=2;chto=3;chf=0;f_ch=1;
   door(sw[i].a,sw[i].b);
   fldf[sw[i].b][sw[i].a]=j;
-  need_sky_mask_rebuild = true;
-  fld_need_remap=1;
 }
 
 static int shutdoor(int i) {
@@ -204,7 +203,6 @@ static int shutdoor(int i) {
   }
   chto=2;
   door(sw[i].a,sw[i].b);
-  fld_need_remap=1;
   swsnd=Z_sound(sndbdc,128);
   return 1;
 }
@@ -315,7 +313,6 @@ int SW_press(int x,int y,int r,int h,unsigned char t,int o) {
 		  Z_chktrap(1,100,-3,HIT_TRAP);
 		  cht=255;chto=2;
 		  door(sw[si].a,sw[si].b);
-		  fld_need_remap=1;
 		  swsnd=Z_sound(sndswn,128);
 		  sw[si].tm=1;sw[si].d=20;
 		  break;
@@ -326,7 +323,6 @@ int SW_press(int x,int y,int r,int h,unsigned char t,int o) {
 		    cht=9;chto=10;f_ch=0;
 		  }else break;
 		  door(sw[si].a,sw[si].b);
-		  fld_need_remap=1;
 		  swsnd=Z_sound(sndswx,128);
 		  sw[si].tm=9;
 		  break;
@@ -334,7 +330,6 @@ int SW_press(int x,int y,int r,int h,unsigned char t,int o) {
 		  if(fld[sw[si].b][sw[si].a]!=10) break;
 		  cht=10;chto=9;f_ch=0;
 		  door(sw[si].a,sw[si].b);
-		  fld_need_remap=1;
 		  swsnd=Z_sound(sndswx,128);
 		  sw[si].tm=1;
 		  break;
@@ -342,7 +337,6 @@ int SW_press(int x,int y,int r,int h,unsigned char t,int o) {
 		  if(fld[sw[si].b][sw[si].a]!=9) break;
 		  cht=9;chto=10;f_ch=0;
 		  door(sw[si].a,sw[si].b);
-		  fld_need_remap=1;
 		  swsnd=Z_sound(sndswx,128);
 		  sw[si].tm=1;
 		  break;
@@ -354,15 +348,12 @@ int SW_press(int x,int y,int r,int h,unsigned char t,int o) {
       }
       if(sw[si].tm) {
         fldb[sw[si].y][sw[si].x]=walswp[fldb[sw[si].y][sw[si].x]]; p=1;
-        need_sky_mask_rebuild = true;
+        sky_mark_dirty(sw[si].x,sw[si].y,sw[si].x+1,sw[si].y+1);
       }
       if(sw[si].tm==1) sw[si].tm=0;
       }
     }
   }
-  if (need_sky_mask_rebuild) {
-    build_sky_mask();
-    need_sky_mask_rebuild = false;
-  }
+  build_sky_mask_dirty();
   return p;
 }

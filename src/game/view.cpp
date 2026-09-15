@@ -59,6 +59,85 @@ BN_DATA_EWRAM unsigned char fld[FLDH][FLDW];
 /** Маска неба: 1 = в ячейке видно небо (нет непрозрачного тайла), 0 = не рисовать небо. */
 BN_DATA_EWRAM unsigned char sky_at_map[FLDH][FLDW];
 
+static inline uint16_t read_le16(const uint8_t* p) {
+  return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+static int sky_dx0, sky_dy0, sky_dx1, sky_dy1;
+static unsigned char sky_dirty;
+
+static void stamp_sky_layer(const unsigned char field[FLDH][FLDW], int x0, int y0, int x1, int y1) {
+  int mx0 = x0 - MAXTXW;
+  int my0 = y0 - MAXTXH;
+  if (mx0 < 0) mx0 = 0;
+  if (my0 < 0) my0 = 0;
+  for (int my = my0; my < y1; ++my) {
+    for (int mx = mx0; mx < x1; ++mx) {
+      unsigned char b = field[my][mx];
+      if (b == 0 || (walf[b] & 1)) continue;
+      const uint8_t* tex = (const uint8_t*)walp[b];
+      int w = (int)read_le16(tex + 0), h = (int)read_le16(tex + 2);
+      int cx_end = mx + (w - 1) / CELW;
+      int cy_end = my + (h - 1) / CELH;
+      if (cx_end >= FLDW) cx_end = FLDW - 1;
+      if (cy_end >= FLDH) cy_end = FLDH - 1;
+      int sx = (mx > x0) ? mx : x0;
+      int sy = (my > y0) ? my : y0;
+      int ex = (cx_end < x1 - 1) ? cx_end : x1 - 1;
+      int ey = (cy_end < y1 - 1) ? cy_end : y1 - 1;
+      for (int cy = sy; cy <= ey; ++cy)
+        for (int cx = sx; cx <= ex; ++cx)
+          sky_at_map[cy][cx] = 0;
+    }
+  }
+}
+
+static void build_sky_mask_rect(int x0, int y0, int x1, int y1) {
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 > FLDW) x1 = FLDW;
+  if (y1 > FLDH) y1 = FLDH;
+  if (x0 >= x1 || y0 >= y1) return;
+  for (int my = y0; my < y1; ++my)
+    for (int mx = x0; mx < x1; ++mx)
+      sky_at_map[my][mx] = 1;
+  stamp_sky_layer(fldb, x0, y0, x1, y1);
+  stamp_sky_layer(fldf, x0, y0, x1, y1);
+}
+
+void sky_mark_dirty(int x0, int y0, int x1, int y1) {
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 > FLDW) x1 = FLDW;
+  if (y1 > FLDH) y1 = FLDH;
+  if (x0 >= x1 || y0 >= y1) return;
+  sky_dirty = 1;
+  if (sky_dx0 >= sky_dx1) {
+    sky_dx0 = x0; sky_dy0 = y0; sky_dx1 = x1; sky_dy1 = y1;
+    return;
+  }
+  if (x0 < sky_dx0) sky_dx0 = x0;
+  if (y0 < sky_dy0) sky_dy0 = y0;
+  if (x1 > sky_dx1) sky_dx1 = x1;
+  if (y1 > sky_dy1) sky_dy1 = y1;
+}
+
+void build_sky_mask(void) {
+  build_sky_mask_rect(0, 0, FLDW, FLDH);
+  sky_dirty = 0;
+  sky_dx0 = FLDW; sky_dy0 = FLDH; sky_dx1 = 0; sky_dy1 = 0;
+}
+
+void build_sky_mask_dirty(void) {
+  if (!sky_dirty) return;
+  if (sky_dx0 >= sky_dx1)
+    build_sky_mask_rect(0, 0, FLDW, FLDH);
+  else
+    build_sky_mask_rect(sky_dx0, sky_dy0, sky_dx1, sky_dy1);
+  sky_dirty = 0;
+  sky_dx0 = FLDW; sky_dy0 = FLDH; sky_dx1 = 0; sky_dy1 = 0;
+}
+
 extern int lt_time,lt_type,lt_side,lt_ypos;
 extern void *ltn[2][2];
 
@@ -124,50 +203,6 @@ void W_adjust(void) {
   if(w_y<HT/2) w_y=HT/2;
   if(w_x>MAXX) w_x=MAXX;
   if(w_y>MAXY) w_y=MAXY;
-}
-
-static inline uint16_t read_le16(const uint8_t* p) {
-  return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
-}
-
-/** Строит sky_at_map по fldb/fldf с учётом размеров текстур (как в main_v6).
- *  Сначала всё = небо видно; для каждой непрозрачной стены затираем все ячейки, которые она перекрывает (по w,h из заголовка текстуры). */
-BN_CODE_IWRAM void build_sky_mask(void) {
-  BN_LOG("build_sky_mask requested");
-  for (int my = 0; my < FLDH; ++my)
-    for (int mx = 0; mx < FLDW; ++mx)
-      sky_at_map[my][mx] = 1;
-
-  for (int my = 0; my < FLDH; ++my) {
-    for (int mx = 0; mx < FLDW; ++mx) {
-      unsigned char b = fldb[my][mx];
-      if (b == 0 || (walf[b] & 1)) continue;
-      const uint8_t* tex = (const uint8_t*)walp[b];
-      int w = (int)read_le16(tex + 0), h = (int)read_le16(tex + 2);
-      int cx_end = mx + (w - 1) / CELW;
-      int cy_end = my + (h - 1) / CELH;
-      if (cx_end >= FLDW) cx_end = FLDW - 1;
-      if (cy_end >= FLDH) cy_end = FLDH - 1;
-      for (int cy = my; cy <= cy_end; ++cy)
-        for (int cx = mx; cx <= cx_end; ++cx)
-          sky_at_map[cy][cx] = 0;
-    }
-  }
-  for (int my = 0; my < FLDH; ++my) {
-    for (int mx = 0; mx < FLDW; ++mx) {
-      unsigned char f = fldf[my][mx];
-      if (f == 0 || (walf[f] & 1)) continue;
-      const uint8_t* tex = (const uint8_t*)walp[f];
-      int w = (int)read_le16(tex + 0), h = (int)read_le16(tex + 2);
-      int cx_end = mx + (w - 1) / CELW;
-      int cy_end = my + (h - 1) / CELH;
-      if (cx_end >= FLDW) cx_end = FLDW - 1;
-      if (cy_end >= FLDH) cy_end = FLDH - 1;
-      for (int cy = my; cy <= cy_end; ++cy)
-        for (int cx = mx; cx <= cx_end; ++cx)
-          sky_at_map[cy][cx] = 0;
-    }
-  }
 }
 
 static void Z_drawsky(void) {

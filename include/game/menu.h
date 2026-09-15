@@ -16,6 +16,7 @@ void GMV_stop(void);
 void GM_init(void);
 int GM_act(void);
 int GM_draw(void);
+void GM_open_save_prompt(void);
 
 void G_code(void);
 

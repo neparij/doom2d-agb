@@ -372,7 +372,7 @@ BN_CODE_IWRAM int Z_inlift(int x,int y,int r,int h) {
   return 0;
 }
 
-BN_CODE_IWRAM int Z_isblocked(int x,int y,int r,int h,int xv) {
+int Z_isblocked(int x,int y,int r,int h,int xv) {
   int i,j,sx,sy;
 
 //  if(y>=FLDH*CELH-1) return 0;
@@ -393,7 +393,7 @@ BN_CODE_IWRAM int Z_isblocked(int x,int y,int r,int h,int xv) {
   return 0;
 }
 
-BN_CODE_IWRAM int Z_istrapped(int x,int y,int r,int h) {
+int Z_istrapped(int x,int y,int r,int h) {
   int i,j,sx,sy;
 
 //  if(y>=FLDH*CELH+h) return 0;
@@ -440,7 +440,7 @@ BN_CODE_IWRAM int Z_inwater(int x,int y,int r,int h) {
   return 0;
 }
 
-BN_CODE_IWRAM int Z_getacid(int x,int y,int r,int h) {
+int Z_getacid(int x,int y,int r,int h) {
   int i,j,sx,sy,a;
   static unsigned char tab[4]={0,5,10,20};
 
@@ -462,7 +462,7 @@ BN_CODE_IWRAM int Z_getacid(int x,int y,int r,int h) {
   return tab[a];
 }
 
-BN_CODE_IWRAM int Z_canbreathe(int x,int y,int r,int h) {
+int Z_canbreathe(int x,int y,int r,int h) {
   int i,j,sx,sy;
 
 //  if(y>=FLDH*CELH+h) return 1;
@@ -499,7 +499,7 @@ void Z_kickobj(obj_t *o,int x,int y,int pwr) {
   o->vy+=(long)dy*pwr/m;
 }
 
-BN_CODE_IWRAM int Z_cansee(int x,int y,int xd,int yd) {
+int Z_cansee(int x,int y,int xd,int yd) {
   // register unsigned int d,m; - Clangd: ISO C++17 does not allow 'register' storage class specifier
   unsigned int d,m;
   int sx,sy;

@@ -10,7 +10,23 @@
 #include "enc.h"
 
 short snd_type = ST_DMA;
+short snd_vol = 128;
+short mus_vol = 64;
 bn::optional<bn::music_item> current_music_ref = bn::nullopt;
+
+static constexpr bn::fixed MUS_VOL_MAX = bn::fixed(0.5);
+
+static bn::fixed music_volume() {
+    if (mus_vol <= 0) return 0;
+    return bn::fixed(mus_vol).division(128).multiplication(MUS_VOL_MAX);
+}
+
+void S_apply_volume(void) {
+    bn::sound::set_master_volume(snd_vol <= 0 ? bn::fixed(0) : bn::fixed(snd_vol).division(128));
+    if (bn::music::playing()) {
+        bn::music::set_volume(music_volume());
+    }
+}
 
 static bool name_equals(const char* map_name_8, const char* c_str) {
     for (int i = 0; i < 8; ++i) {
@@ -67,7 +83,8 @@ void S_startmusic(void) {
         BN_ERROR("S_startmusic: no music loaded");
         return;
     }
-    bn::music::play(current_music_ref.value(), bn::fixed(0.3));
+    bn::music::play(current_music_ref.value(), music_volume());
+    S_apply_volume();
 }
 
 // остановить музыку

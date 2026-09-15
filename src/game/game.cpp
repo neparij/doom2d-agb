@@ -31,6 +31,7 @@
 #include "map.h"
 #include "renderer.h"
 #include "sound.h"
+#include "save.h"
 #include "debug.h"
 
 #define LT_DELAY 8
@@ -74,6 +75,7 @@ extern unsigned char cheat;
 
 unsigned char g_bot=0,_2pl=0,g_dm=0,g_st=GS_TITLE,g_exit=0,g_map=1,_warp=0,g_music[8]="MENU";
 int g_pending_newgame=0;
+int g_pending_load=0;
 unsigned char _net=0;
 int g_sttm=1092;
 unsigned int g_time;
@@ -177,6 +179,7 @@ void G_start(void) {
   s[5] = '\0';
   F_loadmap(s);
   // F_loadmap("MAP06");
+  ui_prev_keys = 0xFF;
 
   set_trans(GS_GAME);
   // V_setscr((g_trans)?fx_scr2:scrbuf);V_setrect(0,320,0,200);
@@ -352,13 +355,25 @@ void G_act(void) {
     G_start();
     return;
   }
-  /* GS_INTER: A/B — следующий уровень. Обрабатывать до GM_act(), т.к. GM_act обнуляет lastkey. */
+  if(g_pending_load) {
+    const int slot = g_pending_load - 1;
+    g_pending_load = 0;
+    _2pl=0;g_dm=0;g_bot=0;
+    g_map = SV_slot_map(slot);
+    PL_reset();
+    pl1.color=0x70;
+    R_clear_sprites();
+    R_clear();
+    G_start();
+    SV_restore_player(slot);
+    return;
+  }
+  /* GS_INTER: A/B — сначала спросить про сохранение. */
   if (g_st == GS_INTER && !mnu && (lastkey & (KEY_A | KEY_B))) {
     lastkey = 0;
-    // if (!G_beg_video()) G_start(); // TODO: video
     inter_text_sprites.clear();
     bn::core::update();
-    G_start();
+    GM_open_save_prompt();
     return;
   }
   if(GM_act()) return;
@@ -410,6 +425,7 @@ void G_act(void) {
   } else PL_act(&pl1, keys_pl1);
    MN_act();
    if(fld_need_remap) BM_remapfld();
+   build_sky_mask_dirty();
    BM_clear(BM_PLR1|BM_PLR2|BM_MONSTER);
    BM_mark(&pl1.o,BM_PLR1);
    if(_2pl) BM_mark(&pl2.o,BM_PLR2);
