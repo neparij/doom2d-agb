@@ -249,7 +249,13 @@ unsigned strlen(const char* s) {
 
 [[noreturn]] int main() {
     bn::core::init(bn::color(0, 0, 0));
+    logo_init();
+    logo("Doom2D GBA ");
+    logo(D2DGBA_BUILD_STRING);
+    logo("\n");
+
     init_timers();
+    logo("T_init: setting up timer\n");
 
     BN_LOG("Fast EWRAM available: ", bn::memory::fast_ewram());
     BN_LOG("Slow GamePak found: ", bn::core::slow_game_pak());
@@ -277,18 +283,10 @@ unsigned strlen(const char* s) {
     // F_loadres(F_getresid("COLORMAP"),clrmap,0,256*12);
 
     G_init();
-    BN_LOG("  available EWRAM: ", bn::memory::available_alloc_ewram());
+    logo_i("  available EWRAM: ", bn::memory::available_alloc_ewram());
 #ifdef D2D_DEBUG_ENABLE
     DBG_init();
 #endif
-    // logo("K_init: настройка клавиатуры\n");
-    // K_slow();K_init();
-    // logo("T_init: настройка таймера\n");
-    // T_init();
-    // logo("S_init: настройка звука\n");
-    // S_init();
-    // logo("V_init: настройка видео\n");
-    // if(V_init()!=0) ERR_failinit("Не могу установить видеорежим VGA");
     R_Init();
     GM_init();
     SV_init();

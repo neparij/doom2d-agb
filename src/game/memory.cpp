@@ -21,10 +21,10 @@ BN_DATA_EWRAM static short resl[MAX_WAD];
 
 void M_startup(void) {
    if(m_active) return;
-   BN_LOG("M_startup: setting up memory");
+   logo("M_startup: setting up memory\n");
    memset(resp,0,sizeof(resp));
    memset(resl,0,sizeof(resl));
-   BN_LOG("  available EWRAM: ", bn::memory::available_alloc_ewram());
+   logo_i("  available EWRAM: ", bn::memory::available_alloc_ewram());
    m_active=TRUE;
 }
 

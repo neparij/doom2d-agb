@@ -82,7 +82,7 @@ static int wadh[MAX_WADS];
 //   f_path[_MAX_PATH];
 //
 void F_startup(void) {
-  BN_LOG("F_startup: initializing file system");
+  logo("F_startup: initializing file system\n");
   memset(wads,0,sizeof(wads));
 }
 //
@@ -173,7 +173,7 @@ void F_addwad(const char *fn, const unsigned char *data, const unsigned size) {
 
 void F_initwads(void) {
   int p = 0;
-  BN_LOG("F_initwads: attaching WAD files");
+  logo("F_initwads: attaching WAD files\n");
 
   for (int i = 0; i < MAX_WADS; ++i) {
     if (wads[i][0] == 0) continue;
@@ -182,7 +182,9 @@ void F_initwads(void) {
     if (!data || size < 12) {
       BN_ERROR("WAD without data: ", wads[i]);
     }
-    BN_LOG("  attaching ", wads[i]);
+    logo("  attaching ");
+    logo(wads[i]);
+    logo("\n");
     if (size < 4) BN_ERROR("Missing IWAD or PWAD signature");
     if ((data[0] != 'I' && data[0] != 'P') || data[1] != 'W' || data[2] != 'A' || data[3] != 'D')
       BN_ERROR("Missing IWAD or PWAD signature");
@@ -277,7 +279,10 @@ void F_loadpal(int r, void *p, unsigned int o, unsigned int num) {
 //
 // get resource id
 int F_getresid(char *n) {
-  BN_LOG("F_getresid: looking for resource [", cp866_to_utf8(n), "]");
+  char name[9];
+  memcpy(name, n, 8);
+  name[8] = 0;
+  BN_LOG("F_getresid: looking for resource [", cp866_to_utf8(name), "]");
   int i;
 
   for(i=0;i<wad_num;++i) {
@@ -285,7 +290,7 @@ int F_getresid(char *n) {
     F_wad_get_name(i, buf);
     if(strnicmp(buf,n,8)==0) return i;
   }
-  BN_ERROR("F_getresid: resource [", n, "] not found");
+  BN_ERROR("F_getresid: resource [", name, "] not found");
   return -1;
 }
 

@@ -9,6 +9,7 @@
 #include "player.h"
 #include "renderer.h"
 #include "sound.h"
+#include "glob.h"
 
 static constexpr char kMagic[8] = {'D', '2', 'D', 'G', 'B', 'A', '1', '\0'};
 
@@ -72,7 +73,7 @@ static void apply_settings_to_ram() {
 void SV_init(void) {
     bn::sram::read(cart);
     if (!magic_ok(cart)) {
-        BN_LOG("SV_init: SRAM unformatted, writing defaults");
+        logo("SV_init: SRAM unformatted\n");
         bn::sram::clear(bn::sram::size());
         memset(&cart, 0, sizeof(cart));
         memcpy(cart.magic_head, kMagic, 8);
@@ -82,7 +83,7 @@ void SV_init(void) {
         return;
     }
     apply_settings_to_ram();
-    BN_LOG("SV_init: SRAM loaded");
+    logo("SV_init: SRAM loaded\n");
 }
 
 void SV_commit(void) {

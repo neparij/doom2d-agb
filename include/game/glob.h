@@ -16,6 +16,11 @@
 unsigned rnd_max(unsigned n);
 #define random(n) (rnd_max(n))
 
+void logo_init(void);
+void logo(const char *s);
+void logo_i(const char *s, int n);
+void logo_gas(int cur, int all);
+
 extern int gamma;
 extern int snd_card;
 extern int _cpu;

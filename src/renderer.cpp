@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "files.h"
+#include "glob.h"
 
 #include "bn_log.h"
 #include "bn_display.h"
@@ -27,7 +28,7 @@ bn::vector<bn::sprite_ptr, 48> menu_vol_sprites;
 bn::vector<bn::sprite_ptr, 64> inter_text_sprites;
 
 void R_Init(void) {
-    BN_LOG("R_Init: Renderer initialization started");
+    logo("V_init: setting up video\n");
 
     bn::color pal_buf[256];
     char playpal_name[8];
