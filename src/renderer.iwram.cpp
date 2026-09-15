@@ -571,8 +571,10 @@ void BN_CODE_IWRAM Z_drawfld(unsigned char *field) {
         int sx = sx_lo;
 
         while (sx < sx_hi) {
+            while (sx < sx_hi && frow[sx] == 0) ++sx;
+            if (sx >= sx_hi) break;
             const unsigned char c = frow[sx];
-            if (c == 0 || (uintptr_t)walp[c] <= 3u) { ++sx; continue; }
+            if ((uintptr_t)walp[c] <= 3u) { ++sx; continue; }
 
             const uint8_t* const pic = (const uint8_t*)walp[c];
             const int tw = (int)read_le16(pic);
@@ -586,19 +588,26 @@ void BN_CODE_IWRAM Z_drawfld(unsigned char *field) {
             const bool can_batch = ((tw & 7) == 0) && ox == 0 && oy == 0;
 
             if (can_batch) {
-                int num_tex = 1;
+                int num_tex;
+                int run_cells;
                 if (cpt == 1) {
                     int end_sx = sx + 1;
                     while (end_sx < sx_hi && frow[end_sx] == c) ++end_sx;
                     num_tex = end_sx - sx;
+                    run_cells = num_tex;
                 } else {
-                    int check = sx + cpt;
-                    while (check + cpt <= sx_hi && frow[check] == c) {
+                    num_tex = 0;
+                    run_cells = 0;
+                    while (sx + run_cells + cpt <= sx_hi) {
+                        int i = 0;
+                        for (; i < cpt; ++i)
+                            if (frow[sx + run_cells + i] != c) break;
+                        if (i != cpt) break;
                         ++num_tex;
-                        check += cpt;
+                        run_cells += cpt;
                     }
+                    if (num_tex == 0) { num_tex = 1; run_cells = 1; }
                 }
-                const int run_cells = num_tex * cpt;
                 const int x = x_base + (sx << 3);
                 const int strip_px = num_tex * tw;
 
@@ -619,7 +628,16 @@ void BN_CODE_IWRAM Z_drawfld(unsigned char *field) {
                         uint8_t* vr = vram + (scr_y + py0) * 240 + el;
                         const uint8_t* tr = tex + py0 * tw;
 
-                        {
+                        if (buf_off == 0 && num_tex == 1) {
+                            for (int py = py0; py < py1; ++py) {
+                                if (!transparent)
+                                    bn::hw::dma::copy_words(tr, nw, vr);
+                                else
+                                    blit_row_transparent((const uint32_t*)tr, (uint16_t*)vr, nw);
+                                vr += 240;
+                                tr += tw;
+                            }
+                        } else {
                             const int tw_words = tw >> 2;
                             const int off_words = (buf_off >> 2) % tw_words;
                             for (int py = py0; py < py1; ++py) {
@@ -637,12 +655,12 @@ void BN_CODE_IWRAM Z_drawfld(unsigned char *field) {
                                     rem -= chunk;
                                     skip = 0;
                                 }
-                                if (!transparent) {
+                                if (!transparent)
                                     bn::hw::dma::copy_words(tex_line_buf, nw, vr);
-                                } else {
+                                else
                                     blit_row_transparent((const uint32_t*)tex_line_buf, (uint16_t*)vr, nw);
-                                }
-                                vr += 240; tr += tw;
+                                vr += 240;
+                                tr += tw;
                             }
                         }
                     }

@@ -51,6 +51,9 @@ int W_load(const unsigned char* p, unsigned size);
 int G_load(const unsigned char* p, unsigned size);
 /** Пересобрать маску неба по fldb/fldf. Вызывать после любого изменения fldb или fldf. */
 void build_sky_mask(void);
+/** Пометить прямоугольник ячеек [x0,x1)×[y0,y1) и пересобрать маску неба только там. */
+void sky_mark_dirty(int x0, int y0, int x1, int y1);
+void build_sky_mask_dirty(void);
 
 void G_init(void);
 void G_start(void);
@@ -63,6 +66,7 @@ extern unsigned char walswp[256];
 extern unsigned char g_bot,_2pl,g_dm,g_st,g_exit,w_horiz,g_map;
 /** Set by menu when NEW GAME selected; G_act runs G_start on next frame (so sound plays first). */
 extern int g_pending_newgame;
+extern int g_pending_load;
 extern int g_sttm;
 extern unsigned int g_time;
 extern int w_ht;

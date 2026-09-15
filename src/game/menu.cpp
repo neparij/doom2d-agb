@@ -13,8 +13,12 @@
 #include "switch.h"
 #include "menu.h"
 #include "renderer.h"
+#include "save.h"
 
 #include "bn_sprite_items_m_skull.h"
+#include "bn_sprite_items_m_volbar.h"
+#include "bn_sprite_items_m_volknob.h"
+#include "bn_sprite_items_m_lsbar.h"
 
 #include <tonc_memdef.h>
 
@@ -50,7 +54,7 @@ static int icur;
 
 enum{MENU,MSG};
 enum{CANCEL,NEWGAME,LOADGAME,SAVEGAME,OPTIONS,QUITGAME,QUIT,ENDGAME,ENDGM,
-  PLR1,PLR2,COOP,DM,BM,VOLUME,GAMMA,LOAD,SAVE,PLCOLOR,PLCEND,MUSIC,INTERP,
+  PLR1,PLR2,COOP,DM,BM,VOLUME,GAMMA,LOAD,SAVE,SAVEYES,SAVENO,PLCOLOR,PLCEND,MUSIC,INTERP,
   SVOLM,SVOLP,MVOLM,MVOLP,GAMMAM,GAMMAP,PL1CM,PL1CP,PL2CM,PL2CP};
 
 // #ifndef DEMO
@@ -59,7 +63,7 @@ enum{CANCEL,NEWGAME,LOADGAME,SAVEGAME,OPTIONS,QUITGAME,QUIT,ENDGAME,ENDGM,
 
 static char *main_txt[]={
   // "НОВАЯ ИГРА","СТАРАЯ ИГРА","СОХРАНИТЬ ИГРУ","РАЗНОЕ"//,"ВЫХОД"
-  "НОоВАЯ ИГРА","СТАРАЯ ИГРА","СОоХРАНИТЬ ИГРУ","РАЗНОоЕ"//,"ВЫХОД"
+  "НОоВАЯ ИГРА","СТАРАЯ ИГРА","РАЗНОоЕ"//,"ВЫХОД"
 },*opt_txt[]={
   "НАЧАТЬ ЗАНОоВОо","ГРОоМКОоСТЬ","ЯРКОоСТЬ"//,"МУЗЫКА","ИНТЕРПОЛЯЦИЯ:"
 },*ngplr_txt[]={
@@ -75,7 +79,7 @@ static char *main_txt[]={
 };
 
 static unsigned char main_typ[]={
-  NEWGAME,LOADGAME,SAVEGAME,OPTIONS//,QUITGAME
+  NEWGAME,LOADGAME,OPTIONS//,QUITGAME
 },ngplr_typ[]={
   0//PLR1,PLR2
 },ngdm_typ[]={
@@ -86,6 +90,8 @@ static unsigned char main_typ[]={
   QUIT,CANCEL
 },endgm_typ[]={
   ENDGM,CANCEL
+},saveask_typ[]={
+  SAVEYES,SAVENO
 },vol_typ[]={
   SVOLM,MVOLM
 },plcolor_typ[]={
@@ -99,7 +105,7 @@ static unsigned char main_typ[]={
 };
 
 static menu_t main_mnu={
-  MENU,4,0,80,"МЕНЮю",main_txt,main_typ
+  MENU,3,0,80,"МЕНЮю",main_txt,main_typ
 },opt_mnu={
   MENU,3,0,75,"РАЗНОоЕ",opt_txt,opt_typ
 },ngplr_mnu={
@@ -111,7 +117,7 @@ static menu_t main_mnu={
 },plcolor_mnu={
   MENU,2,0,90,"ЦВЕТ",plcolor_txt,plcolor_typ
 },gamma_mnu={
-  MENU,1,0,85,"ЯРКОоСТЬ",gamma_txt,gamma_typ
+  MENU,1,0,40,"ЯРКОоСТЬ",gamma_txt,gamma_typ
 },load_mnu={
   MENU,7,0,85,"ЗАГРУЗИТЬ ИГРУ",NULL,load_typ
 },save_mnu={
@@ -124,12 +130,15 @@ static menu_t main_mnu={
   MSG,0,0,0,"У ВАС ЧТО, КОНЧИЛИСЬ ПАТРОНЫ?",NULL,quit_typ
 },endgm_msg={
   MSG,0,0,0,"НАЧАТЬ ЭТОТ УРОВЕНЬ ЗАНОВО?",NULL,endgm_typ
+},saveask_msg={
+  MSG,0,0,0,"СОХРАНИТЬ ИГРУ?",NULL,saveask_typ
 };
 
 static menu_t *qmsg[3]={&quit1_msg,&quit2_msg,&quit3_msg};
 
 menu_t *mnu=NULL;
 int menu_input_block_frames = 0;
+static unsigned char inter_save_flow = 0;
 
 static unsigned char gm_redraw=0;
 static int gm_tm=0;
@@ -281,7 +290,10 @@ void GM_set(menu_t *m) {
   }
 }
 
-void setgamma(int);
+void GM_open_save_prompt(void) {
+  inter_save_flow = 1;
+  GM_set(&saveask_msg);
+}
 
 void GM_command(int c) {
   switch(c) {
@@ -330,20 +342,33 @@ void GM_command(int c) {
     case OPTIONS:
       GMV_say("_RAZNOE");
       GM_set(&opt_mnu);break;
-   //  case LOADGAME:
-   //    GMV_say("_OLDGAME");
-   //    F_getsavnames();GM_set(&load_mnu);break;
-   //  case SAVEGAME:
-   //    if(g_st!=GS_GAME) break;
-   //    GMV_say("_SAVEGAM");
-   //    F_getsavnames();GM_set(&save_mnu);break;
-   //  case SAVE:
-	  // input=1;memcpy(ibuf,savname[save_mnu.cur],24);icur=strlen(ibuf);
-	  // GM_set(mnu);break;
-   //  case LOAD:
-	  // if(!savok[load_mnu.cur]) break;
-	  // load_game(load_mnu.cur);
-	  // GM_set(NULL);break;
+    case LOADGAME:
+      GMV_say("_OLDGAME");
+      GM_set(&load_mnu);break;
+    case SAVE:
+      SV_save_slot(save_mnu.cur);
+      Z_sound(msnd2, 128);
+      GM_set(NULL);
+      if (inter_save_flow) {
+        inter_save_flow = 0;
+        G_start();
+      }
+      break;
+    case LOAD:
+      if (!SV_slot_used(load_mnu.cur)) {
+        Z_sound(msnd4, 128);
+        break;
+      }
+      g_pending_load = load_mnu.cur + 1;
+      GM_set(NULL);
+      break;
+    case SAVEYES:
+      GM_set(&save_mnu);break;
+    case SAVENO:
+      inter_save_flow = 0;
+      GM_set(NULL);
+      G_start();
+      break;
 	case VOLUME:
 	  GMV_say("_VOLUME");
 	  GM_set(&vol_mnu);break;
@@ -376,16 +401,42 @@ void GM_command(int c) {
 	//   if(--p2color<0) p2color=PCOLORN-1; break;
 	// case PL2CP:
 	//   if(++p2color>=PCOLORN) p2color=0; break;
-	// case SVOLM:
-	//   if((snd_vol-=8)<0) snd_vol=0; break;
-	// case SVOLP:
-	//   if((snd_vol+=8)>128) snd_vol=128; break;
-	// case MVOLM:
-	//   if((mus_vol-=8)<0) mus_vol=0; break;
-	// case MVOLP:
-	//   if((mus_vol+=8)>128) mus_vol=128; break;
-	case GAMMAM: setgamma(gamma-1);break;
-	case GAMMAP: setgamma(gamma+1);break;
+	case SVOLM:
+	  if ((snd_vol -= 8) < 0) snd_vol = 0;
+	  S_apply_volume();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
+	case SVOLP:
+	  if ((snd_vol += 8) > 128) snd_vol = 128;
+	  S_apply_volume();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
+	case MVOLM:
+	  if ((mus_vol -= 8) < 0) mus_vol = 0;
+	  S_apply_volume();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
+	case MVOLP:
+	  if ((mus_vol += 8) > 128) mus_vol = 128;
+	  S_apply_volume();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
+	case GAMMAM:
+	  if ((pal_level -= 8) < 0) pal_level = 0;
+	  V_apply_display();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
+	case GAMMAP:
+	  if ((pal_level += 8) > 128) pal_level = 128;
+	  V_apply_display();
+	  SV_commit();
+	  GM_set(mnu);
+	  break;
   }
 }
 
@@ -455,20 +506,16 @@ int GM_act(void) {
     if (!mnu) {
       Z_sound(msnd3, 128);
       GM_set(&main_mnu);
-    } else {
+    } else if (!inter_save_flow) {
       Z_sound(msnd4, 128);
       GM_set(NULL);
     }
   } else if (lastkey & KEY_B) {
     menu_text_sprites.clear();
     menu_cursor_sprites.clear();
+    menu_vol_sprites.clear();
 
-    // Clear the allocated tiles
-    // bn::sprites_manager::update();
-    // bn::sprite_tiles_manager::update();
-    // bn::sprites_manager::commit(false);
     bn::core::update();
-
 
     if (!mnu) {
       /* на титуле B — открыть меню; в игре только START открывает меню */
@@ -479,6 +526,9 @@ int GM_act(void) {
     } else if (mnu->type == MSG) {
       Z_sound(msnd4, 128);
       GM_command(mnu->t[1]);
+    } else if (inter_save_flow && mnu == &save_mnu) {
+      Z_sound(msnd4, 128);
+      GM_set(&saveask_msg);
     } else {
       Z_sound(msnd4, 128);
       GM_set(NULL);
@@ -509,10 +559,7 @@ int GM_act(void) {
       if (mnu->t[mnu->cur] >= PL1CM) {
         Z_sound(msnd2, 128);
         GM_command(PLCEND);
-      } else if (mnu->t[mnu->cur] >= SVOLM) {
-        Z_sound(msnd2, 128);
-        GM_command(mnu->t[mnu->cur]);
-      } else {
+      } else if (mnu->t[mnu->cur] < SVOLM) {
         Z_sound(msnd2, 128);
         GM_command(mnu->t[mnu->cur]);
       }
@@ -555,6 +602,7 @@ void GM_init(void) {
   msnd4=Z_getsnd("SWTCHX");
   msnd5=Z_getsnd("SUDI");
   msnd6=Z_getsnd("TUDI");
+  S_apply_volume();
   // TODO: vga images.
 //   msklh[0]=M_lock(F_getresid("M_SKULL1"));
 // //  msklh[0]=load_vga("vga\\spr.vga","M_SKULL1");
@@ -591,6 +639,7 @@ int GM_draw(void) {
     inter_stats_drawn = false;
     menu_text_sprites.clear();
     menu_cursor_sprites.clear();
+    menu_vol_sprites.clear();
     return 1;
   }
   if (!gm_redraw) {
@@ -600,6 +649,7 @@ int GM_draw(void) {
   gm_redraw = 0;
   inter_text_sprites.clear();
   menu_text_sprites.clear();
+  menu_vol_sprites.clear();
 
   // bn::core::update();
   // if (!text_stbf) return 1;
@@ -619,14 +669,49 @@ int GM_draw(void) {
     for (i = 0; i < mnu->n; ++i) {
       int item_y = base_y + 24 + i * 16;
       if (mnu->t[i] == LOAD || mnu->t[i] == SAVE) {
-        // TODO: save/load slots — savname[i], slot graphics
-        text_stbf->generate(menu_x + 4, item_y - 8, "---", menu_text_sprites);
-      } else if (mnu->m && mnu->m[i] && mnu->m[i][0]) {
+        constexpr int frame_w = 32;
+        menu_vol_sprites.push_back(
+            bn::sprite_items::m_lsbar.create_sprite(menu_x + 16, item_y, 0));
+        for (int f = 1; f <= 4; ++f) {
+          menu_vol_sprites.push_back(
+              bn::sprite_items::m_lsbar.create_sprite(menu_x + 16 + f * frame_w, item_y, 1));
+        }
+        menu_vol_sprites.push_back(
+            bn::sprite_items::m_lsbar.create_sprite(menu_x + 16 + 5 * frame_w, item_y, 2));
+        if (SV_slot_used(i)) {
+          text_stcfn->set_left_alignment();
+          text_stcfn->generate(menu_x + 4, item_y + 1, SV_slot_name(i), menu_text_sprites);
+        }
+      } else {
+        const bool slider_item = (mnu->t[i] == SVOLM || mnu->t[i] == MVOLM || mnu->t[i] == GAMMAM);
         int item_x = menu_x;
-        // TODO: sliders (SVOLM+) — offset for value, slider bar
-        // if (mnu->t[i] >= SVOLM) item_x += 0;  // value on right
-        // TODO: player color (PL1CM+) — color sprite
-        text_stbf->generate(item_x, item_y, mnu->m[i], menu_text_sprites);
+        if (slider_item) {
+          constexpr int bar_w = 96;
+          constexpr int bar_inner = 80;
+          const int bar_left = menu_x;
+          int vol = 0;
+          switch (mnu->t[i]) {
+            case SVOLM: vol = snd_vol; break;
+            case MVOLM: vol = mus_vol; break;
+            case GAMMAM: vol = pal_level; break;
+          }
+          if (vol < 0) vol = 0;
+          if (vol > 128) vol = 128;
+          const int knob_x = bar_left + 8 + vol * bar_inner / 128;
+          menu_vol_sprites.push_back(
+              bn::sprite_items::m_volbar.create_sprite(bar_left + 16, item_y, 0));
+          menu_vol_sprites.push_back(
+              bn::sprite_items::m_volbar.create_sprite(bar_left + 48, item_y, 1));
+          menu_vol_sprites.push_back(
+              bn::sprite_items::m_volbar.create_sprite(bar_left + 80, item_y, 2));
+          menu_vol_sprites.push_back(
+              bn::sprite_items::m_volknob.create_sprite(knob_x, item_y));
+          item_x = bar_left + bar_w + 8;
+        }
+        if (mnu->m && mnu->m[i] && mnu->m[i][0]) {
+          // TODO: player color (PL1CM+) — color sprite
+          text_stbf->generate(item_x, item_y, mnu->m[i], menu_text_sprites);
+        }
       }
     }
     // Cursor for selected item (temporary: keys sprite; original used skull msklh)
@@ -643,10 +728,14 @@ int GM_draw(void) {
     }
     set_cursor_frame();
   } else {
-    // MSG: Yes/No dialog (title can be long)
-    text_stcfn->generate(-100, -10, mnu->ttl, menu_text_sprites);
-    text_stcfn->generate(-20, 10, "A: ДА", menu_text_sprites);
-    text_stcfn->generate(-20, 20, "B: НЕТ", menu_text_sprites);
+    // MSG: Yes/No dialog — original centered STCFN title + (Y/N)
+    text_stcfn->set_left_alignment();
+    const int title_w = text_stcfn->width(mnu->ttl);
+    text_stcfn->generate(-title_w / 2, -12, mnu->ttl, menu_text_sprites);
+    const int yes_w = text_stcfn->width("A: ДА");
+    text_stcfn->generate(-yes_w / 2, 8, "A: ДА", menu_text_sprites);
+    const int no_w = text_stcfn->width("B: НЕТ");
+    text_stcfn->generate(-no_w / 2, 20, "B: НЕТ", menu_text_sprites);
     set_cursor_frame();
   }
   return 1;

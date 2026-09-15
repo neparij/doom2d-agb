@@ -25,3 +25,6 @@ tools/dmm2xm
 
 # Local clone of mmutil (CI clones its own)
 mmutil-src/
+
+# Doom2D original source code
+D2D_SRC/
