@@ -51,6 +51,9 @@ int W_load(const unsigned char* p, unsigned size);
 int G_load(const unsigned char* p, unsigned size);
 /** Пересобрать маску неба по fldb/fldf. Вызывать после любого изменения fldb или fldf. */
 void build_sky_mask(void);
+/** Пометить прямоугольник ячеек [x0,x1)×[y0,y1) и пересобрать маску неба только там. */
+void sky_mark_dirty(int x0, int y0, int x1, int y1);
+void build_sky_mask_dirty(void);
 
 void G_init(void);
 void G_start(void);

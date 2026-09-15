@@ -106,6 +106,18 @@ BN_DATA_EWRAM static pcm_ref_t swgsnd,pchsnd,telesnd;
 BN_DATA_EWRAM static pcm_ref_t positsnd[3],podthsnd[3];
 BN_DATA_EWRAM static mn_t mn[MAXMN];
 static int mnum,gsndt;
+
+/* Однопроходный список монстров по клеткам 32×32. stamp!=epoch → клетка пуста. */
+#define GH_CELLS (FLDH_QUARTER * FLDW_QUARTER)
+#define GH_MAX_ENTRIES (MAXMN * 16)
+#define GH_NONE 0xFFFFu
+static_assert(MAXMN <= 256, "gh_mn stores monster index as uint8");
+BN_DATA_EWRAM static unsigned short gh_head[GH_CELLS];
+BN_DATA_EWRAM static unsigned short gh_next[GH_MAX_ENTRIES];
+BN_DATA_EWRAM static unsigned char gh_mn[GH_MAX_ENTRIES];
+BN_DATA_EWRAM static unsigned char gh_stamp[GH_CELLS];
+static unsigned char gh_epoch;
+static unsigned short gh_used;
 static mnsz_t mnsz[MN_TN+1]={
 //rad  ht  life  pain rv jv  slop min_pn
     0,  0,    0,    0, 0, 0,    0,    0,	// none
@@ -252,6 +264,9 @@ void MN_init(void) {
 
   for(i=0;i<MAXMN;++i) {mn[i].t=0;mn[i].st=SLEEP;}
   gsndt=mnum=0;
+  gh_epoch=1;
+  gh_used=0;
+  memset(gh_stamp,0,sizeof(gh_stamp));
 }
 
 static void setst(int i,int st) {
@@ -878,16 +893,36 @@ void MN_act(void) {
 }
 
 void MN_mark(void) {
-  int i;
+  int i, x, y, xs, xe, ys, ye, cell;
+  unsigned short n, next;
 
+  if(++gh_epoch==0) {
+    memset(gh_stamp,0,sizeof(gh_stamp));
+    gh_epoch=1;
+  }
+  gh_used=0;
+  if(!mnum) return;
   for(i=0;i<MAXMN;++i) {
-  	// if(mn[i].t!=0 && mn[i].st!=DEAD && mn[i].st!=DIE)
-  	// 	BM_mark(&mn[i].o,BM_MONSTER);
-  	// Optimization:
-  	mn_t *const m = &mn[i];
-  	if(m->t!=0 && m->st!=DEAD && m->st!=DIE) {
-  		BM_mark(&m->o,BM_MONSTER);
-  	}
+    mn_t *const m = &mn[i];
+    obj_t *o;
+    if(!m->t || m->st==DEAD || m->st==DIE) continue;
+    o=&m->o;
+    xs=(o->x-o->r)>>5; if(xs<0) xs=0;
+    xe=(o->x+o->r)>>5; if(xe>=FLDW_QUARTER) xe=FLDW_QUARTER-1;
+    ys=(o->y-o->h)>>5; if(ys<0) ys=0;
+    ye=o->y>>5; if(ye>=FLDH_QUARTER) ye=FLDH_QUARTER-1;
+    for(y=ys;y<=ye;++y)
+      for(x=xs;x<=xe;++x) {
+        bmap[y][x]|=BM_MONSTER;
+        if(gh_used>=GH_MAX_ENTRIES) continue;
+        cell=y*FLDW_QUARTER+x;
+        next=(gh_stamp[cell]==gh_epoch)?gh_head[cell]:GH_NONE;
+        gh_stamp[cell]=gh_epoch;
+        n=gh_used++;
+        gh_mn[n]=(unsigned char)i;
+        gh_next[n]=next;
+        gh_head[cell]=n;
+      }
   }
 }
 
@@ -991,19 +1026,23 @@ static int MN_hit(int n,int d,int o,int t) {
 
 #define hit(o,x,y) (y<=o.y && y>o.y-o.h && x>=o.x-o.r && x<=o.x+o.r)
 
-BN_CODE_IWRAM int Z_gunhit(int x,int y,int o,int xv,int yv,int lx,int ly,int sx,int sy) {
-  int i,cxl,cyl;
+int Z_gunhit(int x,int y,int o,int xv,int yv,int lx,int ly,int sx,int sy) {
+  int i,cell;
+  unsigned short n;
   obj_t *m;
 
   if(o!=-1) if(hit(pl1.o,x,y)) if(PL_hit(&pl1,3,o,HIT_SOME))
     {pl1.o.vx+=xv;pl1.o.vy+=yv;return -1;}
   if(_2pl && o!=-2) if(hit(pl2.o,x,y)) if(PL_hit(&pl2,3,o,HIT_SOME))
     {pl2.o.vx+=xv;pl2.o.vy+=yv;return -2;}
-  cxl=(x>>5)<<5; cyl=(y>>5)<<5;
-  for(i=0;i<MAXMN;++i) if(mn[i].t && mn[i].st!=DEAD && mn[i].st!=DIE && o!=i) {
+  if(!mnum) return 0;
+  if((unsigned)(x>>5)>=FLDW_QUARTER || (unsigned)(y>>5)>=FLDH_QUARTER) return 0;
+  cell=(y>>5)*FLDW_QUARTER+(x>>5);
+  if(gh_stamp[cell]!=gh_epoch) return 0;
+  for(n=gh_head[cell];n!=GH_NONE;n=gh_next[n]) {
+    i=gh_mn[n];
+    if(o==i) continue;
     m=&mn[i].o;
-    if(m->x+m->r<cxl || m->x-m->r>cxl+31) continue;
-    if(m->y<cyl || m->y-m->h>=cyl+32) continue;
     if(sx==1 && m->x+m->r<lx) continue;
     if(sx==-1 && m->x-m->r>lx) continue;
     if(sy==1 && m->y<ly) continue;
