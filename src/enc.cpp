@@ -6,6 +6,7 @@ inline bn::string<CP866_STRING_MAX_LEN> _cp866_to_utf8_impl(const unsigned char*
     while (*cp866_str) {
         uint8_t c = (uint8_t)*cp866_str++;
         if (c < 128) {
+            if (utf8_str.size() >= CP866_STRING_MAX_LEN) break;
             utf8_str += (char)c;
         } else {
             // CP866: 0x80-0x9F = А-Я (U+0410..U+042F), 0xE0-0xEF = а-я (U+0430..U+044F),
@@ -19,6 +20,7 @@ inline bn::string<CP866_STRING_MAX_LEN> _cp866_to_utf8_impl(const unsigned char*
             else if (c == 0xF1) unicode = 0x0451;   // ё
             else
                 unicode = 0x0400 + (c - 128);  // fallback для прочих символов CP866
+            if (utf8_str.size() + 2 > CP866_STRING_MAX_LEN) break;
             // UTF-8 для U+0080..U+07FF - 2 bytes
             utf8_str += (char)(0xC0 | ((unicode >> 6) & 0x1F));
             utf8_str += (char)(0x80 | (unicode & 0x3F));

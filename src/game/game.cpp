@@ -218,10 +218,11 @@ void G_start_test_level(void) {
 void G_init(void) {
    int i,j;
    char s[9];
+   const int gas_total = 7 + (MN__LAST - MN_DEMON);
+   int gas = 0;
 
-   // logo("G_init: настройка ресурсов игры ");
-   BN_LOG("G_init: setting up game resources");
-//   logo_gas(5,GGAS_TOTAL);
+   logo("G_init: setting up game resources\n");
+   logo_gas(++gas, gas_total);
    telepsnd=Z_getsnd("TELEPT");
    scrnh[0]=M_lock(F_getresid("TITLEPIC"));
    scrnh[1]=M_lock(F_getresid("INTERPIC"));
@@ -234,17 +235,21 @@ void G_init(void) {
    ltnsnd[0]=Z_getsnd("THUND1");
    ltnsnd[1]=Z_getsnd("THUND2");
    DOT_alloc();
-//   SMK_alloc();
+   logo_gas(++gas, gas_total);
    FX_alloc();
+   logo_gas(++gas, gas_total);
    WP_alloc();
+   logo_gas(++gas, gas_total);
    IT_alloc();
+   logo_gas(++gas, gas_total);
    SW_alloc();
+   logo_gas(++gas, gas_total);
    PL_alloc();
+   logo_gas(++gas, gas_total);
    MN_alloc();
    Z_initst();
-//   logo_gas(GGAS_TOTAL,GGAS_TOTAL);
-//   logo("\n");
-// //  GM_init();
+   logo_gas(gas_total, gas_total);
+   logo("\n");
    pl1.color=0x70;
    pl2.color=0x60;
    g_trans=0;

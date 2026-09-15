@@ -226,8 +226,7 @@ void MN_alloc(void) {
     for(i=0;i<5;++i)
       if(sn[j][i][0]) snd[j][i]=Z_getsnd(sn[j][i]);
 	else snd[j][i]=pcm_ref_t{};
-	// else snd[j][i]=NULL;
-    // logo_gas(j+5,GGAS_TOTAL); // TODO: GAS
+    logo_gas(7 + j + 1, 7 + MN_TN);
   }
   for(i=0;i<8;++i) fspr[i]=Z_getspr("FIRE",i,0,NULL);
   pl_spr[0]=Z_getspr("PLAY",'N'-'A',0,NULL);
