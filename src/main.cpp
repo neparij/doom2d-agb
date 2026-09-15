@@ -320,12 +320,12 @@ unsigned strlen(const char* s) {
             int avg_cpu_usage = inc_cpu_usage.division(G_CPU_USAGE_DIVISOR).multiplication(100).right_shift_integer();
             inc_cpu_usage = 0;
             game_tick_pending = false;
-            // _text_sprites.clear();
-            // _text_generator.set_left_alignment();
+            _text_sprites.clear();
+            _text_generator.set_left_alignment();
             // _text_generator.generate(-120, -80+(g_st==GS_GAME ? 16 : 4), bn::format<32>("CPU:{}%", avg_cpu_usage), _text_sprites);
-            // if (g_st==GS_TITLE) {
-            //     _text_generator.generate(-120, 74, bn::format<23>("v{}", D2DGBA_BUILD_STRING), _text_sprites);
-            // }
+            if (g_st==GS_TITLE) {
+                _text_generator.generate(-120, 74, bn::format<23>("v{}", D2DGBA_BUILD_STRING), _text_sprites);
+            }
 
             G_act();
             draw_pending = true;
