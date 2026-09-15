@@ -1170,7 +1170,6 @@ void Z_teleobj(int o,int x,int y) {
   FX_tfog(p->x,p->y);FX_tfog(x,y);
   p->x=x;
   p->y=y;
-  p->xv=p->yv=p->vx=p->vy=0;
   Z_sound(telesnd,128);
 }
 
