@@ -345,7 +345,6 @@ void G_act(void) {
     g_pending_newgame=0;
     _2pl=0;g_dm=0;g_bot=0;
     g_map=_warp?_warp:1;
-    g_map=8; // TODO: Remove, start from MAP08 to test physics.
     PL_reset();
     pl1.color=0x70;
     R_clear_sprites();
